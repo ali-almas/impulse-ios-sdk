@@ -1,6 +1,8 @@
 // The Swift Programming Language
 // https://docs.swift.org/swift-book
 
+import UIKit
+
 public enum ImpulseSDK {
-    public static func hello() { print("Impulse alive") }
+    @MainActor public static func start() { UIViewController.startTracking() }
 }
