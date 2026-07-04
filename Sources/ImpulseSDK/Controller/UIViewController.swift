@@ -7,6 +7,22 @@
 
 import UIKit
 import ObjectiveC.runtime
+import SwiftUI
+
+@MainActor
+final class UIViewControllerSwizzler {
+    private static var hasSwizzled = false
+    
+    static func swizzle() {
+        guard !hasSwizzled else {
+            return
+        }
+        
+        hasSwizzled = true
+        
+        UIViewController.startTracking()
+    }
+}
 
 extension UIViewController {
     static func startTracking() {
@@ -39,13 +55,31 @@ extension UIViewController {
 
     @objc private func swizzled_viewDidAppear(_ animated: Bool) {
         swizzled_viewDidAppear(animated)
-
-        print("OPENED: \(type(of: self))")
+        
+        // Ignore SwiftUI hosting controllers
+        if self is UIHostingController<AnyView> {
+            return
+        }
+        
+        if let trackable = self as? Trackable {
+            print("OPENED: \(trackable.screenName)")
+        } else {
+            print("OPENED: \(type(of: self))")
+        }
     }
-
+    
     @objc private func swizzled_viewDidDisappear(_ animated: Bool) {
         swizzled_viewDidDisappear(animated)
-
-        print("CLOSED: \(type(of: self))")
+        
+        // Ignore SwiftUI hosting controllers
+        if self is UIHostingController<AnyView> {
+            return
+        }
+        
+        if let trackable = self as? Trackable {
+            print("CLOSED: \(trackable.screenName)")
+        } else {
+            print("CLOSED: \(type(of: self))")
+        }
     }
 }

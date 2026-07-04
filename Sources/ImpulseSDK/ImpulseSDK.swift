@@ -3,6 +3,19 @@
 
 import UIKit
 
+@MainActor
 public enum ImpulseSDK {
-    @MainActor public static func start() { UIViewController.startTracking() }
+    public static func start() {
+        UIViewControllerSwizzler.swizzle()
+    }
+    
+    public static func stop() {
+        
+    }
+}
+
+extension ImpulseSDK {
+    public static func onlyAllowTrackableScreens() {
+        
+    }
 }
