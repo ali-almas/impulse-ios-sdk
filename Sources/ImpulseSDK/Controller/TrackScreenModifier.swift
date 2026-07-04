@@ -21,7 +21,7 @@ struct TrackScreenModifier: ViewModifier {
     }
 }
 
-extension View {
+public extension View {
     func trackScreen(_ screenName: String) -> some View {
         modifier(TrackScreenModifier(screenName: screenName))
     }
