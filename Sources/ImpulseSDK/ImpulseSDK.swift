@@ -7,6 +7,7 @@ import UIKit
 public enum ImpulseSDK {
     public static func start() {
         UIViewControllerSwizzler.swizzle()
+        UIApplication.enableActionTracking()
     }
     
     public static func stop() {
