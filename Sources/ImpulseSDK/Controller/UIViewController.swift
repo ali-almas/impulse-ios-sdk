@@ -55,12 +55,7 @@ extension UIViewController {
 
     @objc private func swizzled_viewDidAppear(_ animated: Bool) {
         swizzled_viewDidAppear(animated)
-        
-        // Ignore SwiftUI hosting controllers
-        if self is UIHostingController<AnyView> {
-            return
-        }
-        
+    
         if let trackable = self as? Trackable {
             print("OPENED: \(trackable.screenName)")
         } else {
@@ -70,11 +65,6 @@ extension UIViewController {
     
     @objc private func swizzled_viewDidDisappear(_ animated: Bool) {
         swizzled_viewDidDisappear(animated)
-        
-        // Ignore SwiftUI hosting controllers
-        if self is UIHostingController<AnyView> {
-            return
-        }
         
         if let trackable = self as? Trackable {
             print("CLOSED: \(trackable.screenName)")
