@@ -16,5 +16,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "ImpulseSDK", path: "Sources/ImpulseSDK"),
+        .testTarget(
+            name: "ImpulseSDKTests",
+            dependencies: ["ImpulseSDK"],
+            path: "Tests/ImpulseSDKTests"
+        ),
     ]
 )
