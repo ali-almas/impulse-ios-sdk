@@ -84,7 +84,7 @@ Impulse.track("coupon_applied", properties: ["code": "SUMMER"])
 struct ProductDetailView: View {
     var body: some View {
         content
-            .impulseTrackScreen("ProductDetail")
+            .trackScreen("ProductDetail")
     }
 }
 ```

@@ -28,12 +28,7 @@ struct TrackScreenModifier: ViewModifier {
 public extension View {
     /// Marks this view as a screen in the user journey. Dwell time is
     /// measured from appear to disappear.
-    func impulseTrackScreen(_ screenName: String) -> some View {
-        modifier(TrackScreenModifier(screenName: screenName))
-    }
-
-    @available(*, deprecated, renamed: "impulseTrackScreen(_:)")
     func trackScreen(_ screenName: String) -> some View {
-        impulseTrackScreen(screenName)
+        modifier(TrackScreenModifier(screenName: screenName))
     }
 }

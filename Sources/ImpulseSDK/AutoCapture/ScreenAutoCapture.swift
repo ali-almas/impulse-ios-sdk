@@ -77,7 +77,7 @@ enum ScreenAutoCapture {
         }
 
         // Skip UIKit/SwiftUI internals. SwiftUI screens should use the
-        // `impulseTrackScreen` modifier instead of the hosting controller.
+        // `trackScreen` modifier instead of the hosting controller.
         let className = NSStringFromClass(type(of: viewController))
         if className.hasPrefix("_")
             || className.hasPrefix("UI")
