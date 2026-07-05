@@ -102,7 +102,9 @@ actor EventUploader {
         var request = URLRequest(url: configuration.endpoint.appendingPathComponent("v1/journeys"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(configuration.apiKey, forHTTPHeaderField: "X-Impulse-Api-Key")
+        if let apiKey = configuration.apiKey {
+            request.setValue(apiKey, forHTTPHeaderField: "X-Impulse-Api-Key")
+        }
         request.setValue(Self.sdkVersion, forHTTPHeaderField: "X-Impulse-SDK-Version")
         request.httpBody = try encoder.encode(batch)
 

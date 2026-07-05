@@ -34,7 +34,7 @@ enum ActionAutoCapture {
 
     static func handle(action: Selector, sender: Any?) {
         guard
-            let client = ImpulseSDK.client,
+            let client = Impulse.client,
             client.isEnabled,
             client.configuration.autoCapture.contains(.actions),
             let sender = sender as? NSObject,

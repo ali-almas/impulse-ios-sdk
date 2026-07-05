@@ -9,7 +9,7 @@
 import UIKit
 
 @MainActor
-public enum ImpulseSDK {
+public enum Impulse {
     static private(set) var client: ImpulseClient?
 
     /// Initializes the SDK. Call once, as early as possible (e.g. in
@@ -19,7 +19,7 @@ public enum ImpulseSDK {
     /// `ImpulseConfiguration.autoCapture`.
     public static func configure(_ configuration: ImpulseConfiguration) {
         guard client == nil else {
-            client?.logger.warning("ImpulseSDK.configure called more than once; ignoring")
+            client?.logger.warning("Impulse.configure called more than once; ignoring")
             return
         }
         client = ImpulseClient(configuration: configuration)
@@ -29,7 +29,7 @@ public enum ImpulseSDK {
 
     /// Associates journeys with your user id so customer support can look
     /// up a specific user's sessions in the dashboard.
-    public static func identify(userId: String) {
+    public static func identify(_ userId: String) {
         client?.identify(userId: userId)
     }
 
@@ -47,11 +47,11 @@ public enum ImpulseSDK {
         client?.identity.userId
     }
 
-    // MARK: - Manual journey tracking
+    // MARK: - Journey tracking
 
-    /// Records a screen visit start. Pair with `trackScreenClosed(_:)` —
+    /// Records a screen visit start. Pair with `screenClosed(_:)` —
     /// dwell time is computed between the two.
-    public static func trackScreenOpened(
+    public static func screen(
         _ name: String,
         properties: [String: PropertyValue] = [:]
     ) {
@@ -63,20 +63,20 @@ public enum ImpulseSDK {
     }
 
     /// Records a screen visit end and its dwell time.
-    public static func trackScreenClosed(_ name: String) {
+    public static func screenClosed(_ name: String) {
         guardedClient()?.tracker.screenClosed(key: manualScreenKey(name))
     }
 
     /// Records a user action (tap, submit, toggle, …) as a journey step.
-    public static func trackAction(
+    public static func action(
         _ name: String,
         properties: [String: PropertyValue] = [:]
     ) {
         guardedClient()?.tracker.action(name: name, properties: properties)
     }
 
-    /// Records a scroll-depth step. `depth` is 0...1 of the content scrolled.
-    public static func trackScroll(depth: Double, screen: String? = nil) {
+    /// Records how deep the user scrolled. `depth` is 0...1 of the content.
+    public static func scroll(_ depth: Double, screen: String? = nil) {
         guardedClient()?.tracker.scroll(depth: depth, screenName: screen)
     }
 
@@ -89,15 +89,15 @@ public enum ImpulseSDK {
     }
 
     /// Declares the result of a named journey within the current session,
-    /// e.g. `completeJourney("checkout", outcome: .success)`. Sessions that
-    /// never receive an outcome for a journey are treated as abandoned by
-    /// the dashboard.
-    public static func completeJourney(
-        _ name: String,
-        outcome: JourneyOutcome,
+    /// e.g. `Impulse.outcome("checkout", .success)`. Sessions that never
+    /// receive an outcome for a journey are treated as abandoned by the
+    /// dashboard.
+    public static func outcome(
+        _ journey: String,
+        _ outcome: JourneyOutcome,
         properties: [String: PropertyValue] = [:]
     ) {
-        guardedClient()?.tracker.outcome(journey: name, outcome: outcome, properties: properties)
+        guardedClient()?.tracker.outcome(journey: journey, outcome: outcome, properties: properties)
     }
 
     // MARK: - Sessions
@@ -108,7 +108,7 @@ public enum ImpulseSDK {
     }
 
     /// Ends the current session and starts a fresh one (a fresh journey).
-    public static func startNewSession() {
+    public static func newSession() {
         guardedClient()?.tracker.startNewSession()
     }
 

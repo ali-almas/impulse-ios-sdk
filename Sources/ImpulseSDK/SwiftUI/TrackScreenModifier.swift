@@ -14,12 +14,12 @@ struct TrackScreenModifier: ViewModifier {
         content
             .onAppear {
                 MainActor.assumeIsolated {
-                    ImpulseSDK.trackScreenOpened(screenName)
+                    Impulse.screen(screenName)
                 }
             }
             .onDisappear {
                 MainActor.assumeIsolated {
-                    ImpulseSDK.trackScreenClosed(screenName)
+                    Impulse.screenClosed(screenName)
                 }
             }
     }

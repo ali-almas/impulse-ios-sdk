@@ -13,6 +13,8 @@ full flow of any session.
 - Manual tracking by default; UIKit auto-capture (screens, taps, scroll
   depth) is strictly opt-in
 - Offline-safe: steps are persisted to disk and uploaded in batches
+- Works with any deployment of the open-source Impulse web platform;
+  an API key is optional
 
 ## Installation
 
@@ -29,33 +31,51 @@ Add the package in Xcode (**File → Add Package Dependencies…**) or in
 import ImpulseSDK
 
 // In application(_:didFinishLaunchingWithOptions:) or your App init:
-ImpulseSDK.configure(ImpulseConfiguration(
-    apiKey: "YOUR_API_KEY",
-    endpoint: URL(string: "https://ingest.yourdomain.com")!
+Impulse.configure(ImpulseConfiguration(
+    endpoint: URL(string: "https://impulse.yourdomain.com")!
+    // apiKey: "…"  ← only if your deployment requires one
 ))
 
 // Associate journeys with your user id (for support lookups):
-ImpulseSDK.identify(userId: "user-42")
+Impulse.identify("user-42")
 ```
 
 By default nothing is captured automatically — you track journey steps
 manually.
 
+## Sessions and journeys
+
+- A **session** starts when the user opens the app and ends after 30 minutes
+  of inactivity (configurable). Every step recorded in between carries the
+  same `session_id` and an incrementing `sequence` number.
+- The **journey** is exactly that ordered list of steps inside one session:
+  `Screen A → Screen B → scrolled down → left`, or
+  `Screen A → Screen B → scrolled down → Buy`.
+
+So the session is just the container (id + boundaries); the journey is its
+content. When support opens a user id in the dashboard, they see that user's
+sessions, and inside each one the full journey. If the user comes back hours
+later, that's a new session — and therefore a new journey, which is what you
+want: yesterday's visit and today's visit are separate paths.
+
+`Impulse.outcome(...)` marks how a journey ended (the "Buy" vs "left" part);
+without it the journey counts as abandoned.
+
 ## Manual tracking (default)
 
 ```swift
-// Screens — dwell time is measured between opened and closed:
-ImpulseSDK.trackScreenOpened("ProductDetail", properties: ["product_id": "sku-1"])
-ImpulseSDK.trackScreenClosed("ProductDetail")
+// Screens — dwell time is measured between screen() and screenClosed():
+Impulse.screen("ProductDetail", properties: ["product_id": "sku-1"])
+Impulse.screenClosed("ProductDetail")
 
 // Actions:
-ImpulseSDK.trackAction("add_to_cart", properties: ["product_id": "sku-1"])
+Impulse.action("add_to_cart", properties: ["product_id": "sku-1"])
 
 // Scroll depth (0...1):
-ImpulseSDK.trackScroll(depth: 0.75)
+Impulse.scroll(0.75)
 
 // Custom steps:
-ImpulseSDK.track("coupon_applied", properties: ["code": "SUMMER"])
+Impulse.track("coupon_applied", properties: ["code": "SUMMER"])
 ```
 
 ### SwiftUI
@@ -76,11 +96,10 @@ Declare the result of a named flow when you know it:
 
 ```swift
 // Order placed:
-ImpulseSDK.completeJourney("checkout", outcome: .success)
+Impulse.outcome("checkout", .success)
 
 // Payment declined:
-ImpulseSDK.completeJourney("checkout", outcome: .failure,
-                           properties: ["reason": "card_declined"])
+Impulse.outcome("checkout", .failure, properties: ["reason": "card_declined"])
 ```
 
 Sessions that contain steps of a flow but never receive an outcome are
@@ -94,9 +113,8 @@ time analytics.
 Enable exactly the signals you want:
 
 ```swift
-ImpulseSDK.configure(ImpulseConfiguration(
-    apiKey: "YOUR_API_KEY",
-    endpoint: URL(string: "https://ingest.yourdomain.com")!,
+Impulse.configure(ImpulseConfiguration(
+    endpoint: URL(string: "https://impulse.yourdomain.com")!,
     autoCapture: .all   // or [.screens], [.screens, .scrolls], …
 ))
 ```
@@ -105,10 +123,13 @@ ImpulseSDK.configure(ImpulseConfiguration(
 |---|---|
 | `.screens` | Screen opens/closes via `viewDidAppear`/`viewDidDisappear`, with dwell time |
 | `.actions` | Taps and value changes on `UIButton`, `UISwitch`, `UISlider`, `UISegmentedControl`, `UIBarButtonItem` |
-| `.scrolls` | Scroll-depth milestones (25/50/75/100 %) on any `UIScrollView` |
+| `.scrolls` | One step per scroll view visit with the **maximum depth reached** (0...1) |
 
 Notes:
 
+- Scroll capture reports only the deepest point, once, when the scroll view
+  leaves the screen — scrolling up and down does not produce extra steps,
+  and nothing is reported if the user never really scrolled.
 - System and container controllers (`UINavigationController`, tab bars,
   UIKit internals) are filtered out automatically.
 - Give screens stable, readable names by conforming to `ImpulseTrackable`:
@@ -123,26 +144,22 @@ Notes:
   conforming controllers.
 - Text fields and text views are never captured.
 
-## Sessions
-
-A journey is scoped to a session. Sessions rotate automatically after
-`sessionTimeout` (default 30 min) of inactivity — typically while the app is
-backgrounded. You can also manage them explicitly:
+## Session & control API
 
 ```swift
-ImpulseSDK.sessionId          // current session id
-ImpulseSDK.startNewSession()  // force a fresh journey
-ImpulseSDK.reset()            // logout: clears user id, rotates anonymous id
-ImpulseSDK.flush()            // upload queued steps now
-ImpulseSDK.setEnabled(false)  // pause all tracking
+Impulse.sessionId          // current session id
+Impulse.newSession()       // force a fresh session (fresh journey)
+Impulse.reset()            // logout: clears user id, rotates anonymous id
+Impulse.flush()            // upload queued steps now
+Impulse.setEnabled(false)  // pause all tracking
 ```
 
 ## Configuration reference
 
 ```swift
 ImpulseConfiguration(
-    apiKey: String,
     endpoint: URL,                          // batches POSTed to {endpoint}/v1/journeys
+    apiKey: String? = nil,                  // sent as X-Impulse-Api-Key when set
     autoCapture: AutoCaptureOptions = [],   // off by default
     autoCaptureOnlyTrackableScreens: Bool = false,
     sessionTimeout: TimeInterval = 1800,    // seconds of inactivity
@@ -155,9 +172,9 @@ ImpulseConfiguration(
 
 ## Ingestion payload
 
-Steps are uploaded as batches to `POST {endpoint}/v1/journeys` with headers
-`X-Impulse-Api-Key` and `X-Impulse-SDK-Version`. Timestamps are epoch
-milliseconds.
+Steps are uploaded as batches to `POST {endpoint}/v1/journeys` with header
+`X-Impulse-SDK-Version` (and `X-Impulse-Api-Key` if configured). Timestamps
+are epoch milliseconds.
 
 ```json
 {
@@ -193,6 +210,8 @@ Step semantics for the dashboard:
   `screen_instance_id` references the view step and carries `dwell_ms`.
   A `screen_view` with no matching exit means the visit was cut short
   (app killed / crashed) — itself a useful signal.
+- `scroll` steps carry the max `depth` (0...1) reached on the screen named
+  in `properties.screen`.
 - `outcome` steps carry `"outcome": "success" | "failure"`; a flow with
   steps but no outcome in the session is abandoned.
 - `session_end` includes `duration_ms`; its absence means the session is

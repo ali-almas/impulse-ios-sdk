@@ -6,8 +6,10 @@
 import UIKit
 import ObjectiveC.runtime
 
-/// Records scroll-depth milestones (25/50/75/100%) for scroll views on
-/// screen. Installed only when `AutoCaptureOptions.scrolls` is enabled.
+/// Records the deepest scroll position reached on a scroll view. A single
+/// `scroll` step with the max depth is emitted when the scroll view leaves
+/// the screen — scrolling up and down in between produces nothing extra.
+/// Installed only when `AutoCaptureOptions.scrolls` is enabled.
 @MainActor
 enum ScrollAutoCapture {
     private static var installed = false
@@ -32,13 +34,16 @@ enum ScrollAutoCapture {
 
     static func handleMovedToWindow(_ scrollView: UIScrollView) {
         guard scrollView.window != nil else {
-            objc_setAssociatedObject(
-                scrollView, &observerKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC
-            )
+            if let observer = objc_getAssociatedObject(scrollView, &observerKey) as? ScrollDepthObserver {
+                observer.finish()
+                objc_setAssociatedObject(
+                    scrollView, &observerKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC
+                )
+            }
             return
         }
         guard
-            let client = ImpulseSDK.client,
+            let client = Impulse.client,
             client.isEnabled,
             client.configuration.autoCapture.contains(.scrolls),
             objc_getAssociatedObject(scrollView, &observerKey) == nil
@@ -53,14 +58,18 @@ enum ScrollAutoCapture {
     }
 }
 
-/// Watches one scroll view's content offset and reports each depth
-/// milestone the first time the user reaches it.
+/// Watches one scroll view's content offset and remembers the deepest
+/// point the user reached; reports it once via `finish()`.
 @MainActor
 private final class ScrollDepthObserver {
-    private static let milestones: [Double] = [0.25, 0.5, 0.75, 1.0]
-
     private var observation: NSKeyValueObservation?
-    private var reportedMilestone: Double = 0
+    /// Depth visible before any user scrolling; reporting is skipped when
+    /// the user never went meaningfully past it.
+    private var baselineDepth: Double?
+    private var maxDepth: Double = 0
+    /// Screen the deepest scroll happened on, captured while scrolling
+    /// because the current screen may have changed by report time.
+    private var screenName: String?
 
     init(scrollView: UIScrollView) {
         observation = scrollView.observe(\.contentOffset, options: [.new]) { [weak self] scrollView, _ in
@@ -79,18 +88,30 @@ private final class ScrollDepthObserver {
         let visibleBottom = scrollView.contentOffset.y + scrollView.bounds.height
         let depth = min(max(visibleBottom / scrollableHeight, 0), 1)
 
-        guard
-            let milestone = Self.milestones.last(where: { depth >= $0 }),
-            milestone > reportedMilestone
-        else { return }
-        reportedMilestone = milestone
+        if baselineDepth == nil {
+            baselineDepth = depth
+        }
+        if depth > maxDepth {
+            maxDepth = depth
+            screenName = Impulse.client?.tracker.currentScreenName
+        }
+    }
 
+    /// Emits one scroll step with the deepest position reached.
+    func finish() {
+        observation?.invalidate()
+        observation = nil
+
+        guard let baselineDepth, maxDepth > baselineDepth + 0.05 else { return }
         guard
-            let client = ImpulseSDK.client,
+            let client = Impulse.client,
             client.isEnabled,
             client.configuration.autoCapture.contains(.scrolls)
         else { return }
-        client.tracker.scroll(depth: milestone)
+        client.tracker.scroll(
+            depth: (maxDepth * 100).rounded() / 100,
+            screenName: screenName
+        )
     }
 }
 

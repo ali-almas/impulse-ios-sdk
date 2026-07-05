@@ -37,11 +37,13 @@ public enum LogLevel: Int, Comparable, Sendable {
 }
 
 public struct ImpulseConfiguration: Sendable {
-    /// Project API key, sent as `X-Impulse-Api-Key`.
-    public var apiKey: String
-    /// Base URL of the ingestion service. Batches are POSTed to
+    /// Base URL of the ingestion service (your deployment of the
+    /// open-source Impulse web platform). Batches are POSTed to
     /// `{endpoint}/v1/journeys`.
     public var endpoint: URL
+    /// Optional API key, sent as `X-Impulse-Api-Key` when set. Self-hosted
+    /// deployments without authentication can omit it.
+    public var apiKey: String?
     /// Which signals to capture automatically. Empty (manual tracking only)
     /// by default — enable explicitly, e.g. `.all` or `[.screens, .scrolls]`.
     public var autoCapture: AutoCaptureOptions
@@ -59,8 +61,8 @@ public struct ImpulseConfiguration: Sendable {
     public var logLevel: LogLevel
 
     public init(
-        apiKey: String,
         endpoint: URL,
+        apiKey: String? = nil,
         autoCapture: AutoCaptureOptions = [],
         autoCaptureOnlyTrackableScreens: Bool = false,
         sessionTimeout: TimeInterval = 30 * 60,
@@ -69,8 +71,8 @@ public struct ImpulseConfiguration: Sendable {
         maxQueuedSteps: Int = 10_000,
         logLevel: LogLevel = .warning
     ) {
-        self.apiKey = apiKey
         self.endpoint = endpoint
+        self.apiKey = apiKey
         self.autoCapture = autoCapture
         self.autoCaptureOnlyTrackableScreens = autoCaptureOnlyTrackableScreens
         self.sessionTimeout = sessionTimeout

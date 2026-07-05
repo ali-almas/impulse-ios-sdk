@@ -49,7 +49,7 @@ enum ScreenAutoCapture {
 
     private static func activeClient() -> ImpulseClient? {
         guard
-            let client = ImpulseSDK.client,
+            let client = Impulse.client,
             client.isEnabled,
             client.configuration.autoCapture.contains(.screens)
         else { return nil }
